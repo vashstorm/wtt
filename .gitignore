@@ -1,0 +1,26 @@
+# AI 助手配置
+CLAUDE.md
+AGENTS.md
+.omo/
+
+# 构建产物
+/wtt
+/wtt.exe
+
+# 测试覆盖率
+coverage.out
+
+# 依赖
+vendor/
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 调试
+*.test
+*.prof
