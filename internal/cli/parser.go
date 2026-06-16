@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 // OpType represents the operation type determined from CLI arguments.
@@ -31,12 +30,12 @@ type ParsedArgs struct {
 }
 
 // Parse parses CLI arguments into a ParsedArgs struct.
-// Viper reads values from a pflag FlagSet so flags can appear before OR after
-// the worktree name:
+// pflag keeps flag parsing interspersed by default, so flags can appear before
+// OR after the worktree name:
 //
 //	wtt name -w  ≡  wtt -w name
 func Parse(args []string) (*ParsedArgs, error) {
-	pa, positionals, err := parseWithViper(args)
+	pa, positionals, err := parseFlags(args)
 	if err != nil {
 		return nil, err
 	}
@@ -109,51 +108,44 @@ func Parse(args []string) (*ParsedArgs, error) {
 	return pa, nil
 }
 
-func parseWithViper(args []string) (*ParsedArgs, []string, error) {
+func parseFlags(args []string) (*ParsedArgs, []string, error) {
 	flags := pflag.NewFlagSet("wtt", pflag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.SortFlags = false
 
-	flags.StringP("custom-base", "c", "", "custom worktree base directory")
-	flags.StringArrayP("sync", "s", nil, "paths to sync into the new worktree")
-	flags.BoolP("tmux", "w", false, "open in tmux")
-	flags.BoolP("existing", "e", false, "attach to existing worktree")
-	flags.BoolP("delete", "d", false, "delete worktree")
-	flags.BoolP("delete-branch", "D", false, "delete worktree and branch")
-	flags.BoolP("force", "f", false, "force delete worktree")
-	flags.BoolP("help", "h", false, "show help")
+	customBase := flags.StringP("custom-base", "c", "", "custom worktree base directory")
+	syncValues := flags.StringArrayP("sync", "s", nil, "paths to sync into the new worktree")
+	withTmux := flags.BoolP("tmux", "w", false, "open in tmux")
+	existing := flags.BoolP("existing", "e", false, "attach to existing worktree")
+	deleteWorktree := flags.BoolP("delete", "d", false, "delete worktree")
+	deleteBranch := flags.BoolP("delete-branch", "D", false, "delete worktree and branch")
+	force := flags.BoolP("force", "f", false, "force delete worktree")
+	help := flags.BoolP("help", "h", false, "show help")
 
 	if err := flags.Parse(args); err != nil {
 		return nil, nil, normalizeFlagError(err)
 	}
 
-	cfg := viper.New()
-	if err := cfg.BindPFlags(flags); err != nil {
-		return nil, nil, err
-	}
-
 	pa := &ParsedArgs{
-		CustomBase: cfg.GetString("custom-base"),
-		WithTmux:   cfg.GetBool("tmux"),
-		Existing:   cfg.GetBool("existing"),
-		Force:      cfg.GetBool("force"),
-		Help:       cfg.GetBool("help"),
+		CustomBase: *customBase,
+		WithTmux:   *withTmux,
+		Existing:   *existing,
+		Force:      *force,
+		Help:       *help,
 	}
 
-	for _, value := range cfg.GetStringSlice("sync") {
+	for _, value := range *syncValues {
 		if err := addSyncSpecs(pa, value); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	deleteWorktree := cfg.GetBool("delete")
-	deleteBranch := cfg.GetBool("delete-branch")
-	if deleteWorktree && deleteBranch {
+	if *deleteWorktree && *deleteBranch {
 		return nil, nil, newParseError("-d and -D are mutually exclusive")
 	}
-	if deleteBranch {
+	if *deleteBranch {
 		pa.Op = OpDeleteWorktreeAndBranch
-	} else if deleteWorktree {
+	} else if *deleteWorktree {
 		pa.Op = OpDeleteWorktree
 	}
 

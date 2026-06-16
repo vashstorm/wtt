@@ -30,6 +30,12 @@ Or build only:
 make build
 ```
 
+For a development binary with debug symbols:
+
+```sh
+make dev
+```
+
 ## Usage
 
 ```
@@ -92,7 +98,7 @@ cmd/main.go
 
 ### Design Decisions
 
-- **Viper-backed argument parser**: CLI flags are defined with `spf13/pflag` and read through `spf13/viper`, while still allowing flags before or after the worktree name (`wtt name -w` and `wtt -w name` are equivalent).
+- **pflag-backed argument parser**: CLI flags are defined and read with `spf13/pflag`, while still allowing flags before or after the worktree name (`wtt name -w` and `wtt -w name` are equivalent).
 - **No config files or persistent state**: All behavior is driven by CLI flags and the current git repository.
 - **stdout contract**: Successful create/enter operations print a single `cd '<path>'` line to stdout. Errors and delete output go to stderr.
 - **Sync paths**: `-s` copies files, directories, or glob matches from the caller's current directory into a newly created worktree while preserving relative paths.
@@ -109,15 +115,16 @@ cmd/main.go
 ### Commands
 
 ```sh
-make build       # Build the binary
-make test        # Run all tests
-make test-cover  # Generate and view coverage
-make vet         # Run go vet
-make fmt         # Check formatting
-make lint        # Run golangci-lint
-make install     # Install to ~/.local/bin and configure ~/.wtt
-make uninstall   # Remove ~/.local/bin/wtt and shell integration
-make clean       # Remove build artifacts
+make build         # Build optimized release binary
+make dev           # Build with debug symbols
+make test          # Run all tests
+make test-cover    # Generate and view coverage
+make vet           # Run go vet
+make fmt           # Check formatting
+make lint          # Run golangci-lint
+make install       # Install to ~/.local/bin and configure ~/.wtt
+make uninstall     # Remove ~/.local/bin/wtt and shell integration
+make clean         # Remove build artifacts
 ```
 
 Run a single test:
