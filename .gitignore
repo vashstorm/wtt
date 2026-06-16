@@ -2,6 +2,7 @@
 CLAUDE.md
 AGENTS.md
 .omo/
+.claude/
 
 # 构建产物
 /wtt
@@ -24,3 +25,4 @@ vendor/
 # 调试
 *.test
 *.prof
+test.json

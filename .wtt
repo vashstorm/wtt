@@ -1,0 +1,39 @@
+wtt() {
+    wtt_bin="${WTT_BIN:-$HOME/.local/bin/wtt}"
+    if [ ! -x "$wtt_bin" ]; then
+        printf '%s\n' "wtt: binary not found at $wtt_bin" >&2
+        unset wtt_bin wtt_arg
+        return 127
+    fi
+
+    for wtt_arg in "$@"; do
+        case "$wtt_arg" in
+            -w|--tmux)
+                command "$wtt_bin" "$@"
+                return $?
+                ;;
+        esac
+    done
+
+    wtt_output="$(command "$wtt_bin" "$@")"
+    wtt_status=$?
+    if [ "$wtt_status" -ne 0 ]; then
+        if [ -n "$wtt_output" ]; then
+            printf '%s\n' "$wtt_output"
+        fi
+        unset wtt_bin wtt_output wtt_arg
+        return "$wtt_status"
+    fi
+
+    if [ -z "$wtt_output" ]; then
+        unset wtt_bin wtt_output wtt_arg
+        return 0
+    fi
+
+    case "$wtt_output" in
+        cd\ \'*) eval "$wtt_output"; wtt_status=$? ;;
+        *) printf '%s\n' "$wtt_output"; wtt_status=$? ;;
+    esac
+    unset wtt_bin wtt_output wtt_arg
+    return "$wtt_status"
+}

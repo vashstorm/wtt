@@ -20,6 +20,8 @@ FLAGS
     -e         Attach to an existing worktree (do not create a new one)
     -d <name>  Delete a worktree (keeps the branch)
     -D <name>  Delete a worktree and its branch
+    -f, --force
+               Force delete a worktree with -d or -D
     -h, --help Show this help
 
 EXAMPLES
@@ -32,6 +34,7 @@ EXAMPLES
     wtt -s config.json,data/* feature-login
                                Sync multiple paths into the new worktree
     wtt -d feature-login       Delete worktree, keep branch
-    wtt -D feature-login       Delete worktree and branch`)
+    wtt -D feature-login       Delete worktree and branch
+    wtt -d -f feature-login    Force delete worktree, keep branch`)
 	return err
 }

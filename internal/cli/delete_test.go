@@ -176,3 +176,40 @@ func TestIntegrationDeleteDirtyWorktreeFails(t *testing.T) {
 		t.Errorf("dirty worktree directory %q should still exist after failed removal", wtPath)
 	}
 }
+
+func TestIntegrationDeleteDirtyWorktreeForce(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	repoDir := t.TempDir()
+	initTestRepo(t, repoDir)
+
+	runner := run.NewRealRunner()
+	wtPath := filepath.Join(t.TempDir(), "dirty-force-wt")
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "add", wtPath, "-b", "dirty-force"); err != nil {
+		t.Fatalf("git worktree add: %v", err)
+	}
+
+	dirtyFile := filepath.Join(wtPath, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("write dirty file: %v", err)
+	}
+
+	parsed := &ParsedArgs{
+		Op:    OpDeleteWorktree,
+		Name:  "dirty-force",
+		Force: true,
+	}
+
+	var stderr bytes.Buffer
+	exitCode := handleDelete(parsed, &stderr, repoDir)
+
+	if exitCode != 0 {
+		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
+	}
+
+	if _, err := os.Stat(wtPath); !os.IsNotExist(err) {
+		t.Errorf("dirty worktree directory %q still exists after forced removal", wtPath)
+	}
+}

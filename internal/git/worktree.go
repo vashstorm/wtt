@@ -74,10 +74,15 @@ func (s *Service) CreateWorktree(repoRoot string, absPath string, branchName str
 	return nil
 }
 
-// RemoveWorktree runs git worktree remove <absPath> from repoRoot.
-// It does NOT pass --force.
-func (s *Service) RemoveWorktree(repoRoot string, absPath string) error {
-	_, err := s.runner.RunWithOpts(run.RunOpts{Dir: repoRoot}, "git", "worktree", "remove", absPath)
+// RemoveWorktree runs git worktree remove from repoRoot.
+func (s *Service) RemoveWorktree(repoRoot string, absPath string, force bool) error {
+	args := []string{"worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, absPath)
+
+	_, err := s.runner.RunWithOpts(run.RunOpts{Dir: repoRoot}, "git", args...)
 	if err != nil {
 		return fmt.Errorf("remove worktree %q: %w", absPath, err)
 	}

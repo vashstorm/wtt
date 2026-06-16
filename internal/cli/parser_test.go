@@ -15,6 +15,7 @@ func TestParse(t *testing.T) {
 		wantSync   []string
 		wantTmux   bool
 		wantExist  bool
+		wantForce  bool
 		wantHelp   bool
 		wantErr    bool
 		errContain string
@@ -74,6 +75,12 @@ func TestParse(t *testing.T) {
 			wantErr:    true,
 			errContain: "-s cannot be used with delete",
 		},
+		{
+			name:       "-f without delete fails",
+			args:       []string{"-f", "name"},
+			wantErr:    true,
+			errContain: "-f can only be used with delete",
+		},
 
 		// No arguments
 		{
@@ -99,9 +106,10 @@ func TestParse(t *testing.T) {
 
 		// help
 		{
+			name:     "init is a normal worktree name",
 			args:     []string{"init"},
-			wantOp:   OpInit,
-			wantName: "",
+			wantOp:   OpCreate,
+			wantName: "init",
 		},
 		{
 			name:     "wtt help returns OpHelp",
@@ -205,10 +213,24 @@ func TestParse(t *testing.T) {
 			wantName: "name",
 		},
 		{
+			name:      "-d -f name returns forced OpDeleteWorktree",
+			args:      []string{"-d", "-f", "name"},
+			wantOp:    OpDeleteWorktree,
+			wantName:  "name",
+			wantForce: true,
+		},
+		{
 			name:     "-D name returns OpDeleteWorktreeAndBranch",
 			args:     []string{"-D", "name"},
 			wantOp:   OpDeleteWorktreeAndBranch,
 			wantName: "name",
+		},
+		{
+			name:      "-D --force name returns forced OpDeleteWorktreeAndBranch",
+			args:      []string{"-D", "--force", "name"},
+			wantOp:    OpDeleteWorktreeAndBranch,
+			wantName:  "name",
+			wantForce: true,
 		},
 
 		// Basic create
@@ -285,6 +307,9 @@ func TestParse(t *testing.T) {
 			}
 			if got.Existing != tt.wantExist {
 				t.Errorf("Existing = %v, want %v", got.Existing, tt.wantExist)
+			}
+			if got.Force != tt.wantForce {
+				t.Errorf("Force = %v, want %v", got.Force, tt.wantForce)
 			}
 			if got.Help != tt.wantHelp {
 				t.Errorf("Help = %v, want %v", got.Help, tt.wantHelp)

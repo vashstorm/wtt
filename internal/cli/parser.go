@@ -15,18 +15,18 @@ const (
 	OpCreate                  OpType = iota // create a new worktree
 	OpDeleteWorktree                        // delete worktree only
 	OpDeleteWorktreeAndBranch               // delete worktree and its branch
-	OpInit                                  // print shell wrapper function
 	OpHelp                                  // show usage
 )
 
 // ParsedArgs holds the result of parsing CLI arguments.
 type ParsedArgs struct {
 	Op         OpType
-	Name       string // worktree name (required for create/delete, empty for init/help)
+	Name       string // worktree name (required for create/delete, empty for help)
 	CustomBase string // custom base path from -c flag
 	SyncSpecs  []string
 	WithTmux   bool // -w flag: open in tmux session
 	Existing   bool // -e flag: attach to existing worktree
+	Force      bool // -f flag: force delete worktree
 	Help       bool // -h/--help/help subcommand
 }
 
@@ -44,12 +44,6 @@ func Parse(args []string) (*ParsedArgs, error) {
 	// Determine operation from positionals
 	if len(positionals) > 0 {
 		switch positionals[0] {
-		case "init":
-			if len(positionals) > 1 {
-				return nil, newParseError("init takes no arguments")
-			}
-			pa.Op = OpInit
-			return pa, nil
 		case "help":
 			if len(positionals) > 1 {
 				return nil, newParseError("too many arguments")
@@ -97,6 +91,9 @@ func Parse(args []string) (*ParsedArgs, error) {
 	pa.Op = OpCreate
 
 	// -e requires a name
+	if pa.Force {
+		return nil, newParseError("-f can only be used with delete operations")
+	}
 	if pa.Existing && pa.Name == "" {
 		return nil, newParseError("-e requires a worktree name")
 	}
@@ -104,7 +101,7 @@ func Parse(args []string) (*ParsedArgs, error) {
 		return nil, newParseError("-s cannot be used with -e")
 	}
 
-	// Create requires a name (unless it's help/init which is already handled)
+	// Create requires a name (unless help was already handled).
 	if pa.Name == "" {
 		return nil, newParseError("worktree name is required")
 	}
@@ -123,6 +120,7 @@ func parseWithViper(args []string) (*ParsedArgs, []string, error) {
 	flags.BoolP("existing", "e", false, "attach to existing worktree")
 	flags.BoolP("delete", "d", false, "delete worktree")
 	flags.BoolP("delete-branch", "D", false, "delete worktree and branch")
+	flags.BoolP("force", "f", false, "force delete worktree")
 	flags.BoolP("help", "h", false, "show help")
 
 	if err := flags.Parse(args); err != nil {
@@ -138,6 +136,7 @@ func parseWithViper(args []string) (*ParsedArgs, []string, error) {
 		CustomBase: cfg.GetString("custom-base"),
 		WithTmux:   cfg.GetBool("tmux"),
 		Existing:   cfg.GetBool("existing"),
+		Force:      cfg.GetBool("force"),
 		Help:       cfg.GetBool("help"),
 	}
 

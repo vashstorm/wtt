@@ -36,8 +36,7 @@ func handleDelete(parsed *ParsedArgs, stderr io.Writer, callerCwd string) int {
 		return 1
 	}
 
-	// Remove the worktree (no --force).
-	if err := svc.RemoveWorktree(repoRoot, wt.Path); err != nil {
+	if err := svc.RemoveWorktree(repoRoot, wt.Path, parsed.Force); err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}

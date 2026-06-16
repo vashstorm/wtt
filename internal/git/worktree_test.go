@@ -60,7 +60,7 @@ func TestRemoveWorktree(t *testing.T) {
 	fr := run.NewFakeRunner(nil, nil)
 	svc := NewService(fr)
 
-	err := svc.RemoveWorktree("/repo", "/repo-wt")
+	err := svc.RemoveWorktree("/repo", "/repo-wt", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -86,6 +86,33 @@ func TestRemoveWorktree(t *testing.T) {
 		if arg == "--force" {
 			t.Error("--force flag should not be passed to git worktree remove")
 		}
+	}
+}
+
+func TestRemoveWorktreeForce(t *testing.T) {
+	fr := run.NewFakeRunner(nil, nil)
+	svc := NewService(fr)
+
+	err := svc.RemoveWorktree("/repo", "/repo-wt", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	call := lastCall(t, fakeRunner(fr))
+	if call.Cmd != "git" {
+		t.Errorf("cmd: got %q, want %q", call.Cmd, "git")
+	}
+	wantArgs := []string{"worktree", "remove", "--force", "/repo-wt"}
+	if len(call.Args) != len(wantArgs) {
+		t.Fatalf("args length: got %d, want %d", len(call.Args), len(wantArgs))
+	}
+	for i, got := range call.Args {
+		if got != wantArgs[i] {
+			t.Errorf("args[%d]: got %q, want %q", i, got, wantArgs[i])
+		}
+	}
+	if call.Dir != "/repo" {
+		t.Errorf("dir: got %q, want %q", call.Dir, "/repo")
 	}
 }
 
@@ -474,7 +501,7 @@ func TestIntegrationRemoveWorktree(t *testing.T) {
 	}
 
 	// Remove worktree.
-	if err := svc.RemoveWorktree(repoDir, wtPath); err != nil {
+	if err := svc.RemoveWorktree(repoDir, wtPath, false); err != nil {
 		t.Fatalf("RemoveWorktree: %v", err)
 	}
 

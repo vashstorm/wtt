@@ -4,7 +4,7 @@ A small Go CLI for creating, entering, and deleting git worktrees, with optional
 
 ## How It Works
 
-`wtt` emits a `cd '<path>'` line to stdout so that an eval'd shell wrapper can change the caller's working directory. This lets you jump into worktrees from your current shell without manually `cd`-ing.
+`wtt` emits a `cd '<path>'` line to stdout after successful create/enter operations. A shell function can evaluate that line so `wtt feature-login` changes the caller shell's current directory.
 
 ## Installation
 
@@ -12,7 +12,19 @@ A small Go CLI for creating, entering, and deleting git worktrees, with optional
 make install
 ```
 
-Or build manually:
+This builds `wtt`, copies the binary to `~/.local/bin/wtt`, copies `.wtt` to `~/.wtt`, and appends `source ~/.wtt` to your shell rc file (`~/.zshrc` or `~/.bashrc`).
+
+Do not use `sudo`; Makefile rejects `sudo make ...`. If needed, override shell detection with `make install USER_SHELL=/bin/zsh` or `make install USER_SHELL=/bin/bash`.
+
+To uninstall:
+
+```sh
+make uninstall
+```
+
+This removes `~/.local/bin/wtt`, removes `~/.wtt`, and removes the exact `source ~/.wtt` line from your zsh or bash rc file when present.
+
+Or build only:
 
 ```sh
 make build
@@ -35,7 +47,12 @@ wtt help | -h | --help   Show this help
 | `-e`        | Attach to an existing worktree (do not create a new one)           |
 | `-d <name>` | Delete a worktree (keeps the branch)                               |
 | `-D <name>` | Delete a worktree and its branch                                   |
+| `-f`, `--force` | Force delete a worktree with `-d` or `-D`                      |
 | `-h`, `--help` | Show help                                                       |
+
+### Shell Integration
+
+A standalone binary cannot change the current directory of its parent shell, so `make install` installs a shell function in `~/.wtt` and sources it from your shell rc file. The function calls the real `~/.local/bin/wtt` binary, then evaluates its `cd '<path>'` output so `wtt feature-login` leaves your current shell inside the worktree.
 
 ### Examples
 
@@ -49,6 +66,7 @@ wtt -e feature-login       # Attach to existing worktree
 wtt -w feature-login       # Create worktree in a tmux session
 wtt -d feature-login       # Delete worktree, keep branch
 wtt -D feature-login       # Delete worktree and branch
+wtt -d -f feature-login    # Force delete worktree, keep branch
 ```
 
 ## Architecture
@@ -78,7 +96,7 @@ cmd/main.go
 - **No config files or persistent state**: All behavior is driven by CLI flags and the current git repository.
 - **stdout contract**: Successful create/enter operations print a single `cd '<path>'` line to stdout. Errors and delete output go to stderr.
 - **Sync paths**: `-s` copies files, directories, or glob matches from the caller's current directory into a newly created worktree while preserving relative paths.
-- **No forced deletion**: `RemoveWorktree` calls `git worktree remove` without `--force`. Dirty worktrees will fail.
+- **Forced deletion is explicit**: `-f` passes `--force` to `git worktree remove`. Without `-f`, dirty worktrees fail.
 
 ## Development
 
@@ -97,7 +115,8 @@ make test-cover  # Generate and view coverage
 make vet         # Run go vet
 make fmt         # Check formatting
 make lint        # Run golangci-lint
-make install     # Install to $GOPATH/bin
+make install     # Install to ~/.local/bin and configure ~/.wtt
+make uninstall   # Remove ~/.local/bin/wtt and shell integration
 make clean       # Remove build artifacts
 ```
 
@@ -111,6 +130,7 @@ go test ./internal/cli -run TestIntegrationCreateDefaultWorktree
 
 - Must run inside a git repository
 - No fish shell support
-- No auto-modification of shell config files
-- No forced deletion of dirty worktrees
-- No config files or persistent state
+- `make install` updates the current zsh or bash rc file to source `~/.wtt`
+- `make uninstall` removes the installed binary and zsh/bash shell integration
+- Forced deletion of dirty worktrees requires `-f`
+- No app config files or persistent worktree state; shell integration lives in `~/.wtt`
