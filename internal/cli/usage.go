@@ -25,16 +25,15 @@ FLAGS
     -h, --help Show this help
 
 EXAMPLES
-    wtt feature-login          Create worktree "feature-login"
-    wtt -w feature-login       Create worktree in a tmux session
-    wtt -e feature-login       Attach to existing worktree
-    wtt -c /repo feature-login Create worktree using /repo as base
-    wtt -s config.json feature-login
-                               Sync config.json into the new worktree
-    wtt -s config.json,data/* feature-login
-                               Sync multiple paths into the new worktree
-    wtt -d feature-login       Delete worktree, keep branch
-    wtt -D feature-login       Delete worktree and branch
-    wtt -d -f feature-login    Force delete worktree, keep branch`)
+    wtt feature                 Create worktree "feature"
+    wtt -w feature              Create worktree in a tmux session
+    wtt -e feature              Attach to existing worktree
+    wtt -c /repo feature        Create worktree using /repo as base
+    wtt -s config.json feature  Sync config.json into the new worktree
+    wtt -s config.json,data/* feature
+                                Sync multiple paths into the new worktree
+    wtt -d feature              Delete worktree, keep branch
+    wtt -D feature              Delete worktree and branch
+    wtt -d -f feature           Force delete worktree, keep branch`)
 	return err
 }
