@@ -31,8 +31,8 @@ func TestIntegrationCreateDefaultWorktree(t *testing.T) {
 		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
 	}
 
-	// Verify worktree exists on disk at <repo>/.claude/worktree/feature-a.
-	expectedPath := filepath.Join(repoDir, ".claude", "worktree", "feature-a")
+	// Verify worktree exists on disk at <repo>/.worktree/feature-a.
+	expectedPath := filepath.Join(repoDir, ".worktree", "feature-a")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("worktree path %q does not exist", expectedPath)
 	}
@@ -116,7 +116,7 @@ func TestIntegrationCreateSyncsFilesAndGlob(t *testing.T) {
 		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
 	}
 
-	expectedPath := filepath.Join(repoDir, ".claude", "worktree", "feature-sync")
+	expectedPath := filepath.Join(repoDir, ".worktree", "feature-sync")
 	assertFileContent(t, filepath.Join(expectedPath, "config.json"), `{"env":"local"}`)
 	assertFileContent(t, filepath.Join(expectedPath, "data", "one.txt"), "one")
 	assertFileContent(t, filepath.Join(expectedPath, "data", "nested", "two.txt"), "two")
@@ -146,7 +146,7 @@ func TestIntegrationCreateSyncMissingSourceFailsBeforeCreate(t *testing.T) {
 		t.Errorf("stderr should contain sync source error, got: %q", stderr.String())
 	}
 
-	expectedPath := filepath.Join(repoDir, ".claude", "worktree", "feature-missing-sync")
+	expectedPath := filepath.Join(repoDir, ".worktree", "feature-missing-sync")
 	if _, err := os.Stat(expectedPath); !os.IsNotExist(err) {
 		t.Errorf("worktree path should not exist after sync validation failure: %q", expectedPath)
 	}

@@ -14,7 +14,7 @@ USAGE
     wtt help | -h | --help   Show this help
 
 FLAGS
-    -c <path>  Use <path> as the base directory instead of the default
+    -c <path>  Use <path> as the base directory (default: <repo>/.worktree/<name>)
     -s <paths> Sync files or directories into the new worktree (comma-separated)
     -w         Open the worktree in a new tmux session
     -e         Attach to an existing worktree (do not create a new one)

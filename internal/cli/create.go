@@ -64,7 +64,7 @@ func handleCreate(parsed *ParsedArgs, stdout, stderr io.Writer, callerCwd string
 			baseDir = filepath.Clean(filepath.Join(callerCwd, parsed.CustomBase))
 		}
 	} else {
-		baseDir = filepath.Join(repoRoot, ".claude", "worktree")
+			baseDir = filepath.Join(repoRoot, ".worktree")
 	}
 
 	finalPath := filepath.Join(baseDir, parsed.Name)

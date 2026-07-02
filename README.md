@@ -30,10 +30,10 @@ Or build only:
 make build
 ```
 
-For a development binary with debug symbols:
+For a release build with optimized binary:
 
 ```sh
-make dev
+make build-release
 ```
 
 ## Usage
@@ -63,7 +63,7 @@ A standalone binary cannot change the current directory of its parent shell, so 
 ### Examples
 
 ```sh
-wtt feature-login          # Create worktree "feature-login"
+wtt feature-login          # Create worktree "feature-login" (default: <repo>/.worktree/<name>)
 wtt -c ../worktrees feat   # Create worktree using ../worktrees as base
 wtt -s config.json feat    # Sync config.json into the new worktree
 wtt -s 'config.json,data/*' feat
@@ -115,8 +115,8 @@ cmd/main.go
 ### Commands
 
 ```sh
-make build         # Build optimized release binary
-make dev           # Build with debug symbols
+make build         # Build binary (debug symbols included)
+make build-release # Build optimized release binary
 make test          # Run all tests
 make test-cover    # Generate and view coverage
 make vet           # Run go vet

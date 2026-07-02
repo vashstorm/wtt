@@ -11,17 +11,15 @@ $(error Do not run make with sudo. Run 'make install' as your normal user; it in
 endif
 
 .DEFAULT_GOAL := all
-.PHONY: all build dev build-release test test-cover vet fmt lint clean install uninstall
+.PHONY: all build build-release test test-cover vet fmt lint clean install uninstall
 
 all: build
 
 build:
-	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="-s -w" -o $(BINARY) ./cmd
-
-dev:
 	$(GO) build -o $(BINARY) ./cmd
 
-build-release: build
+build-release:
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="-s -w" -o $(BINARY) ./cmd
 
 test:
 	$(GO) test ./...
@@ -42,7 +40,7 @@ lint:
 clean:
 	rm -f $(BINARY) coverage.out
 
-install: build
+install: build-release
 	install -d "$(INSTALL_DIR)"
 	install -m 0755 "$(BINARY)" "$(INSTALL_BIN)"
 	install -m 0644 .wtt "$(HOME_DIR)/.wtt"

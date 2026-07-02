@@ -8,6 +8,9 @@ AGENTS.md
 /wtt
 /wtt.exe
 
+# wtt 默认 worktree 目录
+/.worktree/
+
 # 测试覆盖率
 coverage.out
 
