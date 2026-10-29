@@ -36,6 +36,12 @@ func handleDelete(parsed *ParsedArgs, stderr io.Writer, callerCwd string) int {
 		return 1
 	}
 
+	// -D on a detached worktree has no branch to delete; fail before removing anything.
+	if parsed.Op == OpDeleteWorktreeAndBranch && wt.Detached {
+		fmt.Fprintf(stderr, "worktree %s has a detached HEAD; no branch to delete (use -d)\n", parsed.Name)
+		return 1
+	}
+
 	if err := svc.RemoveWorktree(repoRoot, wt.Path, parsed.Force); err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1

@@ -64,7 +64,7 @@ func handleCreate(parsed *ParsedArgs, stdout, stderr io.Writer, callerCwd string
 			baseDir = filepath.Clean(filepath.Join(callerCwd, parsed.CustomBase))
 		}
 	} else {
-			baseDir = filepath.Join(repoRoot, ".worktree")
+		baseDir = filepath.Join(repoRoot, ".worktree")
 	}
 
 	finalPath := filepath.Join(baseDir, parsed.Name)
@@ -92,16 +92,22 @@ func handleCreate(parsed *ParsedArgs, stdout, stderr io.Writer, callerCwd string
 		return 1
 	}
 
-	// Validate branch name before asking git to create it.
-	if err := svc.ValidateBranchName(parsed.Name); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 1
-	}
-
-	// Create the worktree.
-	if err := svc.CreateWorktree(repoRoot, finalPath, parsed.Name); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 1
+	// Create the worktree: with -b on a new branch, otherwise with a detached HEAD.
+	if parsed.NewBranch {
+		// Validate branch name before asking git to create it.
+		if err := svc.ValidateBranchName(parsed.Name); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
+		if err := svc.CreateWorktree(repoRoot, finalPath, parsed.Name); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
+	} else {
+		if err := svc.CreateWorktreeDetached(repoRoot, finalPath); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
 	}
 
 	if err := syncEntries(syncEntriesToCopy, finalPath); err != nil {

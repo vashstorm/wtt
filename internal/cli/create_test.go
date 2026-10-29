@@ -37,14 +37,29 @@ func TestIntegrationCreateDefaultWorktree(t *testing.T) {
 		t.Errorf("worktree path %q does not exist", expectedPath)
 	}
 
-	// Verify branch exists.
+	// Verify worktree has a detached HEAD: no branch named feature-a exists.
 	runner := run.NewRealRunner()
 	out, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "branch", "--list", "feature-a")
 	if err != nil {
 		t.Fatalf("git branch --list: %v", err)
 	}
-	if !strings.Contains(out, "feature-a") {
-		t.Errorf("branch feature-a not found; output: %q", out)
+	if strings.Contains(out, "feature-a") {
+		t.Errorf("branch feature-a should not exist for detached worktree; output: %q", out)
+	}
+
+	// Verify the worktree entry is reported as detached by git.
+	porcelain, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "list", "--porcelain")
+	if err != nil {
+		t.Fatalf("git worktree list: %v", err)
+	}
+	blockDetached := false
+	for _, block := range strings.Split(porcelain, "\n\n") {
+		if strings.Contains(block, expectedPath+"\n") && strings.Contains(block, "\ndetached") {
+			blockDetached = true
+		}
+	}
+	if !blockDetached {
+		t.Errorf("worktree list should mark %q as detached, got:\n%s", expectedPath, porcelain)
 	}
 
 	// Verify stdout is a single cd command line.
@@ -58,6 +73,51 @@ func TestIntegrationCreateDefaultWorktree(t *testing.T) {
 	}
 	if lines != 0 {
 		t.Errorf("stdout should have exactly 1 line, got %d lines: %q", lines+1, stdout.String())
+	}
+}
+
+func TestIntegrationCreateBranchWorktree(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	repoDir := t.TempDir()
+	initTestRepo(t, repoDir)
+
+	parsed := &ParsedArgs{
+		Op:        OpCreate,
+		Name:      "feature-b",
+		NewBranch: true,
+	}
+
+	var stdout, stderr bytes.Buffer
+	exitCode := handleCreate(parsed, &stdout, &stderr, repoDir)
+
+	if exitCode != 0 {
+		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
+	}
+
+	expectedPath := filepath.Join(repoDir, ".worktree", "feature-b")
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Errorf("worktree path %q does not exist", expectedPath)
+	}
+
+	// Verify the branch exists and the worktree is on it (not detached).
+	runner := run.NewRealRunner()
+	out, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "branch", "--list", "feature-b")
+	if err != nil {
+		t.Fatalf("git branch --list: %v", err)
+	}
+	if !strings.Contains(out, "feature-b") {
+		t.Errorf("branch feature-b not found; output: %q", out)
+	}
+
+	headRef, err := runner.RunWithOpts(run.RunOpts{Dir: expectedPath}, "git", "symbolic-ref", "--short", "HEAD")
+	if err != nil {
+		t.Fatalf("worktree HEAD should be on a branch, got error: %v", err)
+	}
+	if got := strings.TrimSpace(headRef); got != "feature-b" {
+		t.Errorf("worktree HEAD branch: got %q, want %q", got, "feature-b")
 	}
 }
 
@@ -227,6 +287,45 @@ func TestIntegrationExistingWorktreeEmitCd(t *testing.T) {
 	}
 }
 
+func TestIntegrationExistingDetachedWorktreeEmitCd(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	repoDir := t.TempDir()
+	initTestRepo(t, repoDir)
+
+	// Create a detached worktree; it has no branch ref, so lookup must fall
+	// back to matching the worktree directory base name.
+	runner := run.NewRealRunner()
+	wtPath := filepath.Join(repoDir, ".worktree", "detached-e")
+	if err := os.MkdirAll(filepath.Dir(wtPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "add", "--detach", wtPath); err != nil {
+		t.Fatalf("git worktree add: %v", err)
+	}
+
+	parsed := &ParsedArgs{
+		Op:       OpCreate,
+		Name:     "detached-e",
+		Existing: true,
+	}
+
+	var stdout, stderr bytes.Buffer
+	exitCode := handleCreate(parsed, &stdout, &stderr, repoDir)
+
+	if exitCode != 0 {
+		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
+	}
+	want := FormatCDCommand(wtPath)
+	got := strings.TrimRight(stdout.String(), "\n")
+	// git may report the symlink-resolved path (/private/var vs /var on macOS).
+	if !strings.HasPrefix(got, "cd '") || !strings.HasSuffix(got, want[len("cd '"):]) {
+		t.Errorf("stdout: got %q, want %q", got, want)
+	}
+}
+
 func TestIntegrationExistingWorktreeMissing(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found in PATH")
@@ -269,6 +368,42 @@ func TestIntegrationCreateDuplicateWithoutE(t *testing.T) {
 	runner := run.NewRealRunner()
 	wtPath := filepath.Join(t.TempDir(), "dup-wt")
 	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "add", wtPath, "-b", "dup"); err != nil {
+		t.Fatalf("git worktree add: %v", err)
+	}
+
+	// Try creating the same worktree again without -e.
+	parsed := &ParsedArgs{
+		Op:   OpCreate,
+		Name: "dup",
+	}
+
+	var stdout, stderr bytes.Buffer
+	exitCode := handleCreate(parsed, &stdout, &stderr, repoDir)
+
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit code for duplicate worktree, got 0")
+	}
+
+	if !strings.Contains(stderr.String(), "already exists") {
+		t.Errorf("stderr should contain 'already exists', got: %q", stderr.String())
+	}
+}
+
+func TestIntegrationCreateDuplicateDetachedWithoutE(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	repoDir := t.TempDir()
+	initTestRepo(t, repoDir)
+
+	// Create a detached worktree named "dup" first (no branch ref).
+	runner := run.NewRealRunner()
+	wtPath := filepath.Join(repoDir, ".worktree", "dup")
+	if err := os.MkdirAll(filepath.Dir(wtPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "add", "--detach", wtPath); err != nil {
 		t.Fatalf("git worktree add: %v", err)
 	}
 

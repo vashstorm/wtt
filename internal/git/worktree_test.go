@@ -56,6 +56,33 @@ func TestCreateWorktree(t *testing.T) {
 	}
 }
 
+func TestCreateWorktreeDetached(t *testing.T) {
+	fr := run.NewFakeRunner(nil, nil)
+	svc := NewService(fr)
+
+	err := svc.CreateWorktreeDetached("/repo", "/repo-wt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	call := lastCall(t, fakeRunner(fr))
+	if call.Cmd != "git" {
+		t.Errorf("cmd: got %q, want %q", call.Cmd, "git")
+	}
+	wantArgs := []string{"worktree", "add", "--detach", "/repo-wt"}
+	if len(call.Args) != len(wantArgs) {
+		t.Fatalf("args length: got %d, want %d", len(call.Args), len(wantArgs))
+	}
+	for i, got := range call.Args {
+		if got != wantArgs[i] {
+			t.Errorf("args[%d]: got %q, want %q", i, got, wantArgs[i])
+		}
+	}
+	if call.Dir != "/repo" {
+		t.Errorf("dir: got %q, want %q", call.Dir, "/repo")
+	}
+}
+
 func TestRemoveWorktree(t *testing.T) {
 	fr := run.NewFakeRunner(nil, nil)
 	svc := NewService(fr)
@@ -263,6 +290,35 @@ detached
 	}
 }
 
+func TestFindWorktree_ByBaseNameMatch(t *testing.T) {
+	// Detached worktree has no branch ref; match by directory base name.
+	porcelain := `worktree /repo
+HEAD aaa111
+branch refs/heads/main
+
+worktree /repo/.worktree/feature
+HEAD bbb222
+detached
+
+`
+	fr := run.NewFakeRunner(map[string]string{"git": porcelain}, nil)
+	svc := NewService(fr)
+
+	wt, err := svc.FindWorktree("/repo", "feature")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if wt == nil {
+		t.Fatal("expected worktree via base-name match, got nil")
+	}
+	if wt.Path != "/repo/.worktree/feature" {
+		t.Errorf("path: got %q, want %q", wt.Path, "/repo/.worktree/feature")
+	}
+	if !wt.Detached {
+		t.Error("expected detached worktree")
+	}
+}
+
 func TestFindWorktree_NotFound(t *testing.T) {
 	porcelain := `worktree /repo
 HEAD aaa111
@@ -430,6 +486,54 @@ func TestIntegrationCreateWorktree(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("feature-integration worktree not found in list: %+v", trees)
+	}
+}
+
+func TestIntegrationCreateWorktreeDetached(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	runner := run.NewRealRunner()
+	svc := NewService(runner)
+
+	repoDir := t.TempDir()
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "init"); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "commit", "--allow-empty", "-m", "init"); err != nil {
+		t.Fatalf("git commit: %v", err)
+	}
+
+	wtPath := filepath.Join(t.TempDir(), "detached-wt")
+	if err := svc.CreateWorktreeDetached(repoDir, wtPath); err != nil {
+		t.Fatalf("CreateWorktreeDetached: %v", err)
+	}
+
+	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
+		t.Errorf("worktree path %q does not exist", wtPath)
+	}
+
+	trees, err := svc.ListWorktrees(repoDir)
+	if err != nil {
+		t.Fatalf("ListWorktrees: %v", err)
+	}
+
+	found := false
+	for _, wt := range trees {
+		if strings.HasSuffix(wt.Path, wtPath) {
+			if !wt.Detached {
+				t.Errorf("worktree at %q should be detached, got branch %q", wtPath, wt.BranchRef)
+			}
+			if wt.BranchRef != "" {
+				t.Errorf("detached worktree should have no branch ref, got %q", wt.BranchRef)
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("worktree at %q not found in list: %+v", wtPath, trees)
 	}
 }
 

@@ -15,6 +15,7 @@ func TestParse(t *testing.T) {
 		wantSync   []string
 		wantTmux   bool
 		wantExist  bool
+		wantBranch bool
 		wantForce  bool
 		wantHelp   bool
 		wantErr    bool
@@ -34,6 +35,46 @@ func TestParse(t *testing.T) {
 			wantOp:   OpCreate,
 			wantName: "name",
 			wantTmux: true,
+		},
+
+		// -b flag: create on a new branch (default is detached HEAD)
+		{
+			name:       "-b before name",
+			args:       []string{"-b", "name"},
+			wantOp:     OpCreate,
+			wantName:   "name",
+			wantBranch: true,
+		},
+		{
+			name:       "-b after name",
+			args:       []string{"name", "-b"},
+			wantOp:     OpCreate,
+			wantName:   "name",
+			wantBranch: true,
+		},
+		{
+			name:       "-d with -b fails",
+			args:       []string{"-d", "name", "-b"},
+			wantErr:    true,
+			errContain: "-b cannot be used with delete",
+		},
+		{
+			name:       "-D with -b fails",
+			args:       []string{"-D", "name", "-b"},
+			wantErr:    true,
+			errContain: "-b cannot be used with delete",
+		},
+		{
+			name:       "-e with -b fails",
+			args:       []string{"-e", "name", "-b"},
+			wantErr:    true,
+			errContain: "-b cannot be used with -e",
+		},
+		{
+			name:       "-b without name fails",
+			args:       []string{"-b"},
+			wantErr:    true,
+			errContain: "worktree name is required",
 		},
 
 		// Mutual exclusion: -d + -D
@@ -307,6 +348,9 @@ func TestParse(t *testing.T) {
 			}
 			if got.Existing != tt.wantExist {
 				t.Errorf("Existing = %v, want %v", got.Existing, tt.wantExist)
+			}
+			if got.NewBranch != tt.wantBranch {
+				t.Errorf("NewBranch = %v, want %v", got.NewBranch, tt.wantBranch)
 			}
 			if got.Force != tt.wantForce {
 				t.Errorf("Force = %v, want %v", got.Force, tt.wantForce)

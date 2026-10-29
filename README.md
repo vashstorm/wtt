@@ -51,6 +51,7 @@ wtt help | -h | --help   Show this help
 | `-s <paths>` | Sync files or directories into the new worktree. Use commas for multiple paths |
 | `-w`        | Open the worktree in a new tmux session                            |
 | `-e`        | Attach to an existing worktree (do not create a new one)           |
+| `-b`        | Create the worktree on a new branch named `<name>` (default: detached HEAD at the current commit) |
 | `-d <name>` | Delete a worktree (keeps the branch)                               |
 | `-D <name>` | Delete a worktree and its branch                                   |
 | `-f`, `--force` | Force delete a worktree with `-d` or `-D`                      |
@@ -63,7 +64,8 @@ A standalone binary cannot change the current directory of its parent shell, so 
 ### Examples
 
 ```sh
-wtt feature-login          # Create worktree "feature-login" (default: <repo>/.worktree/<name>)
+wtt feature-login          # Create worktree "feature-login" (detached HEAD)
+wtt -b feature-login       # Create worktree "feature-login" on a new branch
 wtt -c ../worktrees feat   # Create worktree using ../worktrees as base
 wtt -s config.json feat    # Sync config.json into the new worktree
 wtt -s 'config.json,data/*' feat
@@ -73,6 +75,17 @@ wtt -w feature-login       # Create worktree in a tmux session
 wtt -d feature-login       # Delete worktree, keep branch
 wtt -D feature-login       # Delete worktree and branch
 wtt -d -f feature-login    # Force delete worktree, keep branch
+```
+
+Flags can be combined and placed before or after the worktree name. Each example below is an independent invocation:
+
+```sh
+wtt -b -w feature-login    # Create a new branch and open the worktree in tmux
+wtt -b feat -c ../worktrees -s 'config.json,data/*'
+                           # Create a new branch under a custom base and sync multiple paths
+wtt -e feature-login -w    # Open an existing worktree in tmux
+wtt -D feature-login --force
+                           # Force delete the worktree and its branch
 ```
 
 ## Architecture
@@ -103,6 +116,7 @@ cmd/main.go
 - **stdout contract**: Successful create/enter operations print a single `cd '<path>'` line to stdout. Errors and delete output go to stderr.
 - **Sync paths**: `-s` copies files, directories, or glob matches from the caller's current directory into a newly created worktree while preserving relative paths.
 - **Forced deletion is explicit**: `-f` passes `--force` to `git worktree remove`. Without `-f`, dirty worktrees fail.
+- **Detached by default**: `wtt <name>` creates the worktree at a detached HEAD; `-b` creates it on a new branch named after the worktree.
 
 ## Development
 

@@ -25,6 +25,7 @@ type ParsedArgs struct {
 	SyncSpecs  []string
 	WithTmux   bool // -w flag: open in tmux session
 	Existing   bool // -e flag: attach to existing worktree
+	NewBranch  bool // -b flag: create the worktree on a new branch (default: detached HEAD)
 	Force      bool // -f flag: force delete worktree
 	Help       bool // -h/--help/help subcommand
 }
@@ -76,6 +77,9 @@ func Parse(args []string) (*ParsedArgs, error) {
 		if pa.Existing {
 			return nil, newParseError("-e cannot be used with delete operations")
 		}
+		if pa.NewBranch {
+			return nil, newParseError("-b cannot be used with delete operations")
+		}
 		if len(pa.SyncSpecs) > 0 {
 			return nil, newParseError("-s cannot be used with delete operations")
 		}
@@ -99,6 +103,9 @@ func Parse(args []string) (*ParsedArgs, error) {
 	if pa.Existing && len(pa.SyncSpecs) > 0 {
 		return nil, newParseError("-s cannot be used with -e")
 	}
+	if pa.Existing && pa.NewBranch {
+		return nil, newParseError("-b cannot be used with -e")
+	}
 
 	// Create requires a name (unless help was already handled).
 	if pa.Name == "" {
@@ -117,6 +124,7 @@ func parseFlags(args []string) (*ParsedArgs, []string, error) {
 	syncValues := flags.StringArrayP("sync", "s", nil, "paths to sync into the new worktree")
 	withTmux := flags.BoolP("tmux", "w", false, "open in tmux")
 	existing := flags.BoolP("existing", "e", false, "attach to existing worktree")
+	newBranch := flags.BoolP("branch", "b", false, "create the worktree on a new branch (default is a detached HEAD)")
 	deleteWorktree := flags.BoolP("delete", "d", false, "delete worktree")
 	deleteBranch := flags.BoolP("delete-branch", "D", false, "delete worktree and branch")
 	force := flags.BoolP("force", "f", false, "force delete worktree")
@@ -130,6 +138,7 @@ func parseFlags(args []string) (*ParsedArgs, []string, error) {
 		CustomBase: *customBase,
 		WithTmux:   *withTmux,
 		Existing:   *existing,
+		NewBranch:  *newBranch,
 		Force:      *force,
 		Help:       *help,
 	}

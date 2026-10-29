@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"wtt/internal/run"
@@ -27,9 +28,10 @@ func (s *Service) ListWorktrees(repoRoot string) ([]WorktreeInfo, error) {
 }
 
 // FindWorktree searches for a worktree by branch name or path.
-// Priority: first match by branch ref refs/heads/<name>, then exact path match
-// when branch info is missing. Returns nil if not found.
-// Returns an error if multiple worktrees match the same branch ref.
+// Priority: first match by branch ref refs/heads/<name>, then exact path
+// match, then worktree directory base name (covers detached worktrees,
+// which have no branch ref). Returns nil if not found.
+// Returns an error if multiple worktrees match the same branch ref or path.
 func (s *Service) FindWorktree(repoRoot string, name string) (*WorktreeInfo, error) {
 	trees, err := s.ListWorktrees(repoRoot)
 	if err != nil {
@@ -48,7 +50,7 @@ func (s *Service) FindWorktree(repoRoot string, name string) (*WorktreeInfo, err
 			}
 			branchMatch = wt
 		}
-		if wt.Path == name {
+		if wt.Path == name || filepath.Base(wt.Path) == name {
 			pathMatches = append(pathMatches, *wt)
 		}
 	}
@@ -70,6 +72,16 @@ func (s *Service) CreateWorktree(repoRoot string, absPath string, branchName str
 	_, err := s.runner.RunWithOpts(run.RunOpts{Dir: repoRoot}, "git", "worktree", "add", absPath, "-b", branchName)
 	if err != nil {
 		return fmt.Errorf("create worktree %q with branch %q: %w", absPath, branchName, err)
+	}
+	return nil
+}
+
+// CreateWorktreeDetached runs git worktree add --detach <absPath> from repoRoot.
+// The new worktree checks out the repository's current HEAD without a branch.
+func (s *Service) CreateWorktreeDetached(repoRoot string, absPath string) error {
+	_, err := s.runner.RunWithOpts(run.RunOpts{Dir: repoRoot}, "git", "worktree", "add", "--detach", absPath)
+	if err != nil {
+		return fmt.Errorf("create detached worktree %q: %w", absPath, err)
 	}
 	return nil
 }

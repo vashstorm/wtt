@@ -213,3 +213,74 @@ func TestIntegrationDeleteDirtyWorktreeForce(t *testing.T) {
 		t.Errorf("dirty worktree directory %q still exists after forced removal", wtPath)
 	}
 }
+
+func TestIntegrationDeleteDetachedWorktree(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	repoDir := t.TempDir()
+	initTestRepo(t, repoDir)
+
+	// Create a detached worktree; lookup falls back to directory base name.
+	runner := run.NewRealRunner()
+	wtPath := filepath.Join(repoDir, ".worktree", "testdel-detached")
+	if err := os.MkdirAll(filepath.Dir(wtPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "add", "--detach", wtPath); err != nil {
+		t.Fatalf("git worktree add: %v", err)
+	}
+
+	parsed := &ParsedArgs{
+		Op:   OpDeleteWorktree,
+		Name: "testdel-detached",
+	}
+
+	var stderr bytes.Buffer
+	exitCode := handleDelete(parsed, &stderr, repoDir)
+
+	if exitCode != 0 {
+		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
+	}
+	if _, err := os.Stat(wtPath); !os.IsNotExist(err) {
+		t.Errorf("worktree directory %q still exists on disk", wtPath)
+	}
+}
+
+func TestIntegrationDeleteBranchOnDetachedWorktreeFails(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	repoDir := t.TempDir()
+	initTestRepo(t, repoDir)
+
+	runner := run.NewRealRunner()
+	wtPath := filepath.Join(repoDir, ".worktree", "testdelD-detached")
+	if err := os.MkdirAll(filepath.Dir(wtPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if _, err := runner.RunWithOpts(run.RunOpts{Dir: repoDir}, "git", "worktree", "add", "--detach", wtPath); err != nil {
+		t.Fatalf("git worktree add: %v", err)
+	}
+
+	parsed := &ParsedArgs{
+		Op:   OpDeleteWorktreeAndBranch,
+		Name: "testdelD-detached",
+	}
+
+	var stderr bytes.Buffer
+	exitCode := handleDelete(parsed, &stderr, repoDir)
+
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit code for -D on detached worktree, got 0")
+	}
+	if !strings.Contains(stderr.String(), "detached HEAD") {
+		t.Errorf("stderr should mention detached HEAD, got: %q", stderr.String())
+	}
+	// The worktree must still exist: -D fails before removing anything.
+	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
+		t.Errorf("worktree %q should not be removed when -D fails", wtPath)
+	}
+}
