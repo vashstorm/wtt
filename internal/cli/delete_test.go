@@ -248,7 +248,7 @@ func TestIntegrationDeleteDetachedWorktree(t *testing.T) {
 	}
 }
 
-func TestIntegrationDeleteBranchOnDetachedWorktreeFails(t *testing.T) {
+func TestIntegrationDeleteBranchOnDetachedWorktreeDeletesWorktreeOnly(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found in PATH")
 	}
@@ -273,14 +273,14 @@ func TestIntegrationDeleteBranchOnDetachedWorktreeFails(t *testing.T) {
 	var stderr bytes.Buffer
 	exitCode := handleDelete(parsed, &stderr, repoDir)
 
-	if exitCode == 0 {
-		t.Fatal("expected non-zero exit code for -D on detached worktree, got 0")
+	if exitCode != 0 {
+		t.Fatalf("exit code: got %d, want 0; stderr: %s", exitCode, stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "detached HEAD") {
 		t.Errorf("stderr should mention detached HEAD, got: %q", stderr.String())
 	}
-	// The worktree must still exist: -D fails before removing anything.
-	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
-		t.Errorf("worktree %q should not be removed when -D fails", wtPath)
+	// The worktree must be gone even though there was no branch to delete.
+	if _, err := os.Stat(wtPath); !os.IsNotExist(err) {
+		t.Errorf("worktree %q should be removed by -D even with a detached HEAD", wtPath)
 	}
 }

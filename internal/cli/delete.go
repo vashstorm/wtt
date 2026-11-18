@@ -36,10 +36,9 @@ func handleDelete(parsed *ParsedArgs, stderr io.Writer, callerCwd string) int {
 		return 1
 	}
 
-	// -D on a detached worktree has no branch to delete; fail before removing anything.
+	// -D on a detached worktree: no branch to delete, remove the worktree only.
 	if parsed.Op == OpDeleteWorktreeAndBranch && wt.Detached {
-		fmt.Fprintf(stderr, "worktree %s has a detached HEAD; no branch to delete (use -d)\n", parsed.Name)
-		return 1
+		fmt.Fprintf(stderr, "worktree %s has a detached HEAD; deleting worktree only\n", parsed.Name)
 	}
 
 	if err := svc.RemoveWorktree(repoRoot, wt.Path, parsed.Force); err != nil {
@@ -47,9 +46,9 @@ func handleDelete(parsed *ParsedArgs, stderr io.Writer, callerCwd string) int {
 		return 1
 	}
 
-	// For -D: also delete the branch.
+	// For -D: also delete the branch (skipped for detached worktrees).
 	// If branch deletion fails, report the error but do NOT undo the worktree removal.
-	if parsed.Op == OpDeleteWorktreeAndBranch {
+	if parsed.Op == OpDeleteWorktreeAndBranch && !wt.Detached {
 		if err := svc.DeleteBranch(repoRoot, parsed.Name); err != nil {
 			fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
